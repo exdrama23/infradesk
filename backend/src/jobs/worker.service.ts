@@ -66,86 +66,86 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     this.logger.log(`Worker ${this.workerId} parado`);
   }
 
-//   private async processLoop() {
-//     if (!this.running) return;
+  private async processLoop() {
+    if (!this.running) return;
 
-//     try {
-//       const job = await this.jobs.claimNext(this.workerId);
+    try {
+      const job = await this.jobs.claimNext(this.workerId);
 
-//       if (!job) return; 
+      if (!job) return; 
 
-//       this.logger.log(`[WORKER] Job ${job.id} (${job.type}) processando...`);
+      this.logger.log(`[WORKER] Job ${job.id} (${job.type}) processando...`);
 
-//       const result = await this.process(job);
+      const result = await this.process(job);
 
-//       await this.jobs.complete(job.id, result);
-//       this.logger.log(`[WORKER] Job ${job.id} concluído`);
+      await this.jobs.complete(job.id, result);
+      this.logger.log(`[WORKER] Job ${job.id} concluído`);
 
-//       this.realtime.emitToDevs(REALTIME_EVENTS.jobProcessed, {
-//         jobId: job.id,
-//         type: job.type,
-//         status: 'COMPLETED',
-//         ticketId: job.ticketId,
-//       });
+      this.realtime.emitToDevs(REALTIME_EVENTS.jobProcessed, {
+        jobId: job.id,
+        type: job.type,
+        status: 'COMPLETED',
+        ticketId: job.ticketId,
+      });
 
-//       try {
-//         const stats = await this.jobs.getStats();
-//         this.realtime.emitToDevs(REALTIME_EVENTS.jobStatsChanged, stats);
-//       } catch (error) {
-//         this.logger.warn(
-//           `[JOBS] Falha ao atualizar estatísticas em tempo real`,
-//           error instanceof Error ? error.stack : String(error),
-//         );
-//       }
-//     } catch (err) {
-//       const message = err instanceof Error ? err.message : String(err);
-//       this.logger.error(`[WORKER] Erro no loop: ${message}`);
-//     }
-//   }
+      try {
+        const stats = await this.jobs.getStats();
+        this.realtime.emitToDevs(REALTIME_EVENTS.jobStatsChanged, stats);
+      } catch (error) {
+        this.logger.warn(
+          `[JOBS] Falha ao atualizar estatísticas em tempo real`,
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.logger.error(`[WORKER] Erro no loop: ${message}`);
+    }
+  }
 
-//   private async process(job: {
-//     id: string;
-//     type: JobType;
-//     payload: Record<string, unknown>;
-//     ticketId: string | null;
-//   }): Promise<Record<string, unknown>> {
-//     switch (job.type) {
-//       case JobType.TICKET_CREATED: {
-//         this.logger.log(`[WORKER] Ticket criado — notificando equipe DEV`);
-//         return { notified: true, at: new Date().toISOString() };
-//       }
+  private async process(job: {
+    id: string;
+    type: JobType;
+    payload: Record<string, unknown>;
+    ticketId: string | null;
+  }): Promise<Record<string, unknown>> {
+    switch (job.type) {
+      case JobType.TICKET_CREATED: {
+        this.logger.log(`[WORKER] Ticket criado — notificando equipe DEV`);
+        return { notified: true, at: new Date().toISOString() };
+      }
 
-//       case JobType.TICKET_STATUS_CHANGED: {
-//         if (job.ticketId) {
-//           const ticket = await this.prisma.ticket.findUnique({
-//             where: { id: job.ticketId },
-//             include: { user: { select: { id: true, name: true, email: true } } },
-//           });
+      case JobType.TICKET_STATUS_CHANGED: {
+        if (job.ticketId) {
+          const ticket = await this.prisma.ticket.findUnique({
+            where: { id: job.ticketId },
+            include: { user: { select: { id: true, name: true, email: true } } },
+          });
 
-//           this.logger.log(
-//             `[WORKER] Status do ticket ${job.ticketId} alterado -> notificando ${ticket?.user.email ?? '?'}`,
-//           );
-//           return {
-//             notifiedUser: ticket?.user.email ?? null,
-//             status: job.payload.status,
-//             at: new Date().toISOString(),
-//           };
-//         }
-//         return {};
-//       }
+          this.logger.log(
+            `[WORKER] Status do ticket ${job.ticketId} alterado -> notificando ${ticket?.user.email ?? '?'}`,
+          );
+          return {
+            notifiedUser: ticket?.user.email ?? null,
+            status: job.payload.status,
+            at: new Date().toISOString(),
+          };
+        }
+        return {};
+      }
 
-//       case JobType.TICKET_ASSIGNED: {
-//         this.logger.log(`[WORKER] Ticket atribuído a DEV — enviando notificação`);
-//         return { assignedTo: job.payload.devEmail ?? null, at: new Date().toISOString() };
-//       }
+      case JobType.TICKET_ASSIGNED: {
+        this.logger.log(`[WORKER] Ticket atribuído a DEV — enviando notificação`);
+        return { assignedTo: job.payload.devEmail ?? null, at: new Date().toISOString() };
+      }
 
-//       case JobType.NOTIFICATION: {
-//         this.logger.log(`[WORKER] Notificação genérica processada`);
-//         return { delivered: true, at: new Date().toISOString() };
-//       }
+      case JobType.NOTIFICATION: {
+        this.logger.log(`[WORKER] Notificação genérica processada`);
+        return { delivered: true, at: new Date().toISOString() };
+      }
 
-//       default:
-//         return { unknownType: true };
-//     }
-//   }
+      default:
+        return { unknownType: true };
+    }
+  }
 }

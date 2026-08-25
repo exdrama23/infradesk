@@ -53,7 +53,7 @@ model User {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  tikets Ticket[] @relation("TicketCreator")
+  tickets Ticket[] @relation("TicketCreator")
   assigned Ticket[] @relation("TicketAssignee")
 
   messagesSent     Message[] @relation("MessageFrom")
@@ -103,7 +103,7 @@ model Ticket {
   updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
   resolvedAt DateTime?  @map("resolved_at") @db.Timestamptz(6)
 
-  ser  User  @relation("TicketCreator", fields: [userId], references: [id], onDelete: Restrict)
+  user  User  @relation("TicketCreator", fields: [userId], references: [id], onDelete: Restrict)
   dev   User? @relation("TicketAssignee", fields: [devId], references: [id], onDelete: SetNull)
 
   jobs     Job[]
