@@ -1,0 +1,159 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+  runtime      = "nodejs"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  USER
+  DEV
+  LIDER
+}
+
+enum TicketStatus {
+  PENDENTE
+  APROVADO
+  REPROVADO
+  EM_PROCESSO
+  IMPLEMENTADO
+  CANCELADO
+}
+
+enum JobStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum JobType {
+  TICKET_CREATED
+  TICKET_STATUS_CHANGED
+  TICKET_ASSIGNED
+  NOTIFICATION
+}
+
+model User {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(100)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  tikets Ticket[] @relation("TicketCreator")
+  assigned Ticket[] @relation("TicketAssignee")
+
+  messagesSent     Message[] @relation("MessageFrom")
+  messagesReceived Message[] @relation("MessageTo")
+
+  sessions Session[]
+
+  @@unique([id, role])
+  @@map("users")
+}
+
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @unique @map("refresh_token_hash") @db.VarChar(128)
+  userAgent        String?   @map("user_agent") @db.VarChar(255)
+  ip               String?   @db.VarChar(45)
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+   @@index([userId])
+  @@map("sessions")
+}
+
+model Ticket {
+  id        String       @id @default(uuid()) @db.Uuid
+  userId    String       @map("user_id") @db.Uuid
+  title     String       @db.VarChar(150)
+  description String     @db.Text
+  userPriority Int       @map("user_priority") @db.SmallInt
+
+  devId     String?      @map("dev_id") @db.Uuid
+  devRole   UserRole?    @map("dev_role")
+  devPriority Int?       @map("dev_priority") @db.SmallInt
+  devDifficulty Int?     @map("dev_difficulty") @db.SmallInt
+
+  status    TicketStatus @default(PENDENTE)
+
+  adminResponse String?   @map("admin_response") @db.Text
+  publicResponse String?  @map("public_response") @db.Text
+  estimatedDelivery DateTime? @map("estimated_delivery") @db.Timestamptz(6)
+
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  resolvedAt DateTime?  @map("resolved_at") @db.Timestamptz(6)
+
+  ser  User  @relation("TicketCreator", fields: [userId], references: [id], onDelete: Restrict)
+  dev   User? @relation("TicketAssignee", fields: [devId], references: [id], onDelete: SetNull)
+
+  jobs     Job[]
+  messages Message[]
+
+  @@index([userId])
+  @@index([devId])
+  @@index([status])
+  @@index([createdAt(sort: Desc)])
+  @@map("tickets")
+}
+
+model Message {
+  id       String   @id @default(uuid()) @db.Uuid
+  ticketId String?  @map("ticket_id") @db.Uuid
+  fromUserId String @map("from_user_id") @db.Uuid
+  toUserId   String @map("to_user_id") @db.Uuid
+  content  String   @db.Text
+  readAt   DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ticket   Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  fromUser User    @relation("MessageFrom", fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUser   User    @relation("MessageTo", fields: [toUserId], references: [id], onDelete: Cascade)
+
+  @@index([toUserId])
+  @@index([ticketId])
+  @@index([createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+model Job {
+  id         String   @id @default(uuid()) @db.Uuid
+  type       JobType
+  payload    Json
+  status     JobStatus @default(PENDING)
+  attempts   Int      @default(0)
+  maxAttempts Int     @default(3)
+  lockId     String?  @map("lock_id") @db.Uuid
+  lockedAt   DateTime? @map("locked_at") @db.Timestamptz(6)
+  error      String?  @db.Text
+  availableAt DateTime @default(now()) @map("available_at") @db.Timestamptz(6)
+
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  processedAt DateTime? @map("processed_at") @db.Timestamptz(6)
+
+  ticketId  String?   @map("ticket_id") @db.Uuid
+  ticket    Ticket?   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+  @@index([ticketId])
+  @@map("jobs")
+}
