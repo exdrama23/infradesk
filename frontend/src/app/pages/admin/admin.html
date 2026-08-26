@@ -1,0 +1,707 @@
+<app-header />
+
+<main class="page container">
+  <nav class="page-tabs" role="tablist">
+    <button
+      class="tab"
+      type="button"
+      [class.tab-active]="pageTab() === 'solicitacoes'"
+      (click)="switchTab('solicitacoes')"
+    >
+      Solicitações
+    </button>
+    <button
+      class="tab tab-badge-host"
+      type="button"
+      [class.tab-active]="pageTab() === 'mensagens'"
+      (click)="switchTab('mensagens')"
+    >
+      Mensagens
+      @if (unreadCount() > 0) {
+        <span class="unread-badge">{{ unreadCount() }}</span>
+      }
+    </button>
+    @if (isLeader) {
+      <button
+        class="tab"
+        type="button"
+        [class.tab-active]="pageTab() === 'equipe'"
+        (click)="switchTab('equipe')"
+      >
+        Equipe
+      </button>
+    }
+  </nav>
+
+  @if (actionError(); as error) {
+    <div class="alert alert-error" role="alert">{{ error }}</div>
+  }
+
+  @if (pageTab() === 'solicitacoes') {
+    <section class="card">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">{{ isLeader ? 'Todas as solicitações' : 'Solicitações' }}</h2>
+        <p class="section-subtitle">Gestão das demandas de infraestrutura</p>
+      </div>
+      @if (pendingCount() > 0) {
+        <span class="count-chip count-chip-pending">{{ pendingCount() }} pendentes</span>
+      }
+    </div>
+
+    <div class="toolbar">
+      <select class="form-control form-control-sm" (change)="changeFilter($event)">
+        <option value="all">Todos os status</option>
+        @for (option of filterOptions; track option) {
+          @if (option !== 'all') {
+            <option [value]="option" [selected]="statusFilter() === option">
+              {{ statusLabels[option] }}
+            </option>
+          }
+        }
+      </select>
+    </div>
+
+    @if (loading()) {
+      <div class="loading">Carregando...</div>
+    } @else if (tickets().length === 0) {
+      <div class="empty-state">
+        <p>Nenhuma solicitação encontrada.</p>
+        <p class="muted">Ajuste o filtro de status ou aguarde novas demandas.</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Solicitante</th>
+              <th>Título</th>
+              <th>Prioridade usuário</th>
+              <th>Prioridade técnica</th>
+              <th>Responsável</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (ticket of tickets(); track ticket.id) {
+              <tr class="row-click" (click)="openDetails(ticket)">
+                <td>{{ ticket.createdAt | date : 'dd/MM/yy' }}</td>
+                <td class="cell-user">{{ ticket.user.name }}</td>
+                <td>
+                  <span class="ticket-cell-title">{{ truncar(ticket.title) }}</span>
+                  <span class="ticket-cell-sub">
+                    #{{ ticket.id.slice(0, 8) }} · criado em
+                    {{ ticket.createdAt | date : 'dd/MM/yyyy HH:mm' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge badge-priority">
+                    {{ priorityLabels[ticket.userPriority] }}
+                  </span>
+                </td>
+                <td>
+                  @if (ticket.devPriority !== null) {
+                    <span class="badge badge-priority">
+                      {{ ticket.devPriority }} - {{ priorityLabels[ticket.devPriority] }}
+                    </span>
+                  } @else {
+                    <span class="muted">-</span>
+                  }
+                </td>
+                <td>
+                  @if (ticket.dev; as dev) {
+                    <span class="cell-user">{{ dev.name }}</span>
+                  } @else {
+                    <span class="muted">-</span>
+                  }
+                </td>
+                <td>
+                  <span class="badge" [class]="badgeClass(ticket.status)">
+                    {{ statusLabels[ticket.status] }}
+                  </span>
+                </td>
+                <td (click)="$event.stopPropagation()">
+                  @switch (ticket.status) {
+                    @case ('PENDENTE') {
+                      <div class="cell-actions">
+                        <select
+                          class="form-control form-control-sm"
+                          (change)="onSelectDev(ticket.id, $event)"
+                        >
+                          <option value="" selected disabled>Selecione o DEV</option>
+                          @for (dev of devs(); track dev.id) {
+                            <option [value]="dev.id">{{ dev.name }}</option>
+                          }
+                        </select>
+                        <button class="btn btn-sm btn-outline" type="button" (click)="assign(ticket)">
+                          Atribuir
+                        </button>
+                        <button class="btn btn-sm btn-primary" type="button" (click)="openReview(ticket)">
+                          Analisar
+                        </button>
+                      </div>
+                    }
+                    @case ('APROVADO') {
+                      <div class="cell-actions">
+                        <button class="btn btn-sm btn-outline" type="button" (click)="openReview(ticket)">
+                          Editar
+                        </button>
+                        <button class="btn btn-sm btn-primary" type="button" (click)="start(ticket)">
+                          Iniciar
+                        </button>
+                      </div>
+                    }
+                    @case ('EM_PROCESSO') {
+                      <div class="cell-actions">
+                        <button class="btn btn-sm btn-outline" type="button" (click)="openReview(ticket)">
+                          Editar
+                        </button>
+                        <button class="btn btn-sm btn-primary" type="button" (click)="implement(ticket)">
+                          Implementar
+                        </button>
+                      </div>
+                    }
+                    
+                  }
+                  @if (isLeader) {
+                    <button
+                      class="btn btn-sm btn-outline btn-conversar"
+                      type="button"
+                      (click)="conversar(ticket)"
+                    >
+                      Conversar
+                    </button>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPages > 1) {
+        <div class="pagination">
+          <button
+            class="btn btn-sm btn-outline"
+            type="button"
+            [disabled]="page() === 1"
+            (click)="goToPage(page() - 1)"
+          >
+            Anterior
+          </button>
+          <span class="pagination-info">Página {{ page() }} de {{ totalPages }}</span>
+          <button
+            class="btn btn-sm btn-outline"
+            type="button"
+            [disabled]="page() === totalPages"
+            (click)="goToPage(page() + 1)"
+          >
+            Próxima
+          </button>
+        </div>
+      }
+    }
+  </section>
+  }
+
+  @if (pageTab() === 'mensagens') {
+    @if (isLeader) {
+      <section class="card">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Enviar mensagem</h2>
+            <p class="section-subtitle">
+              Selecione a tarefa e o desenvolvedor; a mensagem chega em tempo real
+            </p>
+          </div>
+        </div>
+
+        <form [formGroup]="messageForm" (ngSubmit)="sendMessage()">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="msg-ticket">Tarefa</label>
+              <select id="msg-ticket" class="form-control" formControlName="ticketId">
+                <option value="">Sem tarefa vinculada</option>
+                @for (t of messageTickets(); track t.id) {
+                  <option [value]="t.id">
+                    #{{ t.id.slice(0, 8) }} - {{ t.title }} - {{ t.user.name }}
+                    ({{ statusLabels[t.status] }})
+                  </option>
+                }
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="msg-dev">Desenvolvedor</label>
+              <select id="msg-dev" class="form-control" formControlName="toUserId">
+                <option value="" selected disabled>Selecione o DEV</option>
+                @for (dev of devs(); track dev.id) {
+                  <option [value]="dev.id">{{ dev.name }}</option>
+                }
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="msg-content">Mensagem</label>
+            <textarea
+              id="msg-content"
+              class="form-control"
+              rows="3"
+              placeholder="Escreva a orientação sobre esta tarefa..."
+              formControlName="content"
+            ></textarea>
+          </div>
+
+          @if (messageFeedback(); as feedback) {
+            <p class="muted">{{ feedback }}</p>
+          }
+
+          <div class="form-actions">
+            <button class="btn btn-primary" type="submit" [disabled]="sendingMessage()">
+              {{ sendingMessage() ? 'Enviando...' : 'Enviar mensagem' }}
+            </button>
+          </div>
+        </form>
+      </section>
+    }
+
+    @if (!isLeader) {
+      <section class="card">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Mensagens recebidas</h2>
+            <p class="section-subtitle">Comunicações do líder sobre tarefas</p>
+          </div>
+        </div>
+
+        @if (inbox().length === 0) {
+          <div class="empty-state">
+            <p>Nenhuma mensagem recebida.</p>
+          </div>
+        } @else {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>De</th>
+                  <th>Tarefa</th>
+                  <th>Mensagem</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (message of inbox(); track message.id) {
+                  <tr class="row-click" (click)="openMessage(message)">
+                    <td>{{ message.createdAt | date : 'dd/MM/yy HH:mm' }}</td>
+                    <td class="cell-user">{{ message.fromUser.name }}</td>
+                    <td>
+                      @if (message.ticket; as t) {
+                        <span class="ticket-cell-title">{{ truncar(t.title) }}</span>
+                        <span class="ticket-cell-sub">#{{ t.id.slice(0, 8) }}</span>
+                      } @else {
+                        <span class="muted">-</span>
+                      }
+                    </td>
+                    <td class="cell-message">{{ truncar(message.content) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    }
+  }
+
+  @if (pageTab() === 'equipe' && isLeader) {
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Nova conta de DEV</h2>
+          <p class="section-subtitle">O desenvolvedor já pode entrar com o e-mail e a senha criados</p>
+        </div>
+      </div>
+
+      <form [formGroup]="accountForm" (ngSubmit)="createAccount()">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="acc-name">Nome</label>
+            <input
+              id="acc-name"
+              class="form-control"
+              type="text"
+              placeholder="Ex.: Pedro Alves"
+              formControlName="name"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="acc-email">E-mail</label>
+            <input
+              id="acc-email"
+              class="form-control"
+              type="email"
+              placeholder="pedro@infradesk.com"
+              formControlName="email"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="acc-password">Senha</label>
+            <input
+              id="acc-password"
+              class="form-control"
+              type="password"
+              placeholder="Mínimo de 6 caracteres"
+              formControlName="password"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="acc-role">Papel da conta</label>
+            <select id="acc-role" class="form-control" formControlName="role">
+              <option value="DEV">Desenvolvedor (DEV)</option>
+              <option value="USER">Usuário comum</option>
+            </select>
+          </div>
+        </div>
+
+        @if (accountFeedback(); as feedback) {
+          <p class="muted">{{ feedback }}</p>
+        }
+
+        <div class="form-actions">
+          <button class="btn btn-primary" type="submit" [disabled]="creatingAccount()">
+            {{ creatingAccount() ? 'Criando...' : 'Criar conta' }}
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="section-header">
+        <div>
+          <h2 class="section-title">Usuários do sistema</h2>
+          <p class="section-subtitle">Visão geral de quem atua em cada fluxo</p>
+        </div>
+        <span class="count-chip">{{ teamUsers().length }}</span>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>E-mail</th>
+              <th>Papel</th>
+              <th>Solicitações abertas</th>
+              <th>Tarefas atribuídas</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (u of teamUsers(); track u.id) {
+              <tr>
+                <td class="cell-user">{{ u.name }}</td>
+                <td>{{ u.email }}</td>
+                <td>
+                  <span class="badge badge-priority">
+                    {{ u.role === 'DEV' ? 'DEV' : u.role === 'LIDER' ? 'LÍDER' : 'Usuário' }}
+                  </span>
+                </td>
+                <td>{{ u._count.tickets }}</td>
+                <td>{{ u._count.assigned }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </section>
+  }
+</main>
+
+@if (reviewingTicket(); as ticket) {
+  <div class="modal-overlay" (click)="closeReview()">
+    <div class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title">Analisar solicitação</h3>
+          <p class="modal-subtitle">{{ ticket.title }} · {{ ticket.user.name }}</p>
+        </div>
+        <button class="modal-close" type="button" aria-label="Fechar" (click)="closeReview()">
+          &times;
+        </button>
+      </div>
+
+      <div class="review-context">
+        <div class="detail-row">
+          <span class="detail-label">Prioridade do usuário:</span>
+          <span>{{ priorityLabels[ticket.userPriority] }}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">Descrição</span>
+          <p class="detail-text">{{ ticket.description }}</p>
+        </div>
+      </div>
+
+      <form class="modal-form" [formGroup]="reviewForm" (ngSubmit)="submitReview()">
+        <div class="form-group">
+          <label for="review-status">Decisão</label>
+          <select id="review-status" class="form-control" formControlName="status">
+            @for (option of reviewStatusOptions(ticket); track option) {
+              <option [value]="option">{{ statusLabels[option] }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="review-priority">Prioridade técnica</label>
+            <select id="review-priority" class="form-control" formControlName="devPriority">
+              @for (priority of priorityOptions; track priority) {
+                <option [value]="priority">{{ priority }} - {{ priorityLabels[priority] }}</option>
+              }
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="review-difficulty">Dificuldade</label>
+            <select id="review-difficulty" class="form-control" formControlName="devDifficulty">
+              @for (difficulty of priorityOptions; track difficulty) {
+                <option [value]="difficulty">{{ difficulty }} - {{ difficultyLabels[difficulty] }}</option>
+              }
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="review-delivery">Previsão de entrega</label>
+          <input
+            id="review-delivery"
+            class="form-control"
+            type="date"
+            formControlName="estimatedDelivery"
+          />
+        </div>
+
+        <div class="form-group">
+          <div class="tabs" role="tablist">
+            <button
+              class="tab"
+              type="button"
+              role="tab"
+              [class.tab-active]="activeTab() === 'privada'"
+              [attr.aria-selected]="activeTab() === 'privada'"
+              (click)="activeTab.set('privada')"
+            >
+              Resposta ao solicitante
+            </button>
+            <button
+              class="tab"
+              type="button"
+              role="tab"
+              [class.tab-active]="activeTab() === 'publica'"
+              [attr.aria-selected]="activeTab() === 'publica'"
+              (click)="activeTab.set('publica')"
+            >
+              Pública
+            </button>
+          </div>
+
+          <div [hidden]="activeTab() !== 'privada'">
+            <textarea
+              id="review-response"
+              class="form-control"
+              rows="3"
+              placeholder="Visível apenas para quem abriu a solicitação..."
+              formControlName="adminResponse"
+            ></textarea>
+            @if (
+              reviewForm.controls.adminResponse.invalid &&
+              reviewForm.controls.adminResponse.touched
+            ) {
+              <span class="field-error">A resposta deve ter no máximo 1000 caracteres.</span>
+            }
+          </div>
+
+          <div [hidden]="activeTab() !== 'publica'">
+            <textarea
+              id="review-public-response"
+              class="form-control"
+              rows="3"
+              placeholder="Visível para todos os usuários do sistema..."
+              formControlName="publicResponse"
+            ></textarea>
+            @if (
+              reviewForm.controls.publicResponse.invalid &&
+              reviewForm.controls.publicResponse.touched
+            ) {
+              <span class="field-error">A resposta pública deve ter no máximo 1000 caracteres.</span>
+            }
+          </div>
+
+          <p class="tab-hint">
+            {{ activeTab() === 'privada'
+              ? 'Enviada somente ao usuário que abriu a solicitação.'
+              : 'Exibida para todos os usuários (comunicado geral).' }}
+          </p>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-ghost" type="button" (click)="closeReview()">Cancelar</button>
+          <button class="btn btn-primary" type="submit" [disabled]="reviewing()">
+            {{ reviewing() ? 'Enviando...' : 'Confirmar' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+@if (viewingTicket(); as ticket) {
+  <div class="modal-overlay" (click)="closeDetails()">
+    <div class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title">{{ ticket.title }}</h3>
+          <p class="modal-subtitle">
+            {{ ticket.user.name }} · aberto em
+            {{ ticket.createdAt | date : 'dd/MM/yyyy HH:mm' }}
+          </p>
+        </div>
+        <button class="modal-close" type="button" aria-label="Fechar" (click)="closeDetails()">
+          &times;
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="detail-row">
+          <span class="detail-label">Status</span>
+          <span class="badge" [class]="badgeClass(ticket.status)">
+            {{ statusLabels[ticket.status] }}
+          </span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-label">Prioridade do usuário</span>
+          <span>{{ priorityLabels[ticket.userPriority] }}</span>
+        </div>
+
+        @if (ticket.devPriority !== null) {
+          <div class="detail-row">
+            <span class="detail-label">Prioridade técnica</span>
+            <span>{{ ticket.devPriority }} - {{ priorityLabels[ticket.devPriority] }}</span>
+          </div>
+        }
+
+        @if (ticket.devDifficulty !== null) {
+          <div class="detail-row">
+            <span class="detail-label">Dificuldade</span>
+            <span>{{ ticket.devDifficulty }}</span>
+          </div>
+        }
+
+        <div class="detail-row">
+          <span class="detail-label">Descrição</span>
+          <p class="detail-text">{{ ticket.description }}</p>
+        </div>
+
+        @if (ticket.dev; as dev) {
+          <div class="detail-row">
+            <span class="detail-label">Responsável</span>
+            <span>{{ dev.name }}</span>
+          </div>
+        }
+
+        @if (ticket.estimatedDelivery; as delivery) {
+          <div class="detail-row">
+            <span class="detail-label">Previsão de entrega</span>
+            <span>{{ delivery | date : 'dd/MM/yyyy' }}</span>
+          </div>
+        }
+
+        @if (ticket.resolvedAt; as resolvedAt) {
+          <div class="detail-row">
+            <span class="detail-label">Concluída em</span>
+            <span>{{ resolvedAt | date : 'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+        }
+
+        @if (ticket.adminResponse; as response) {
+          <div class="detail-block">
+            <span class="detail-label">Resposta ao solicitante</span>
+            <p class="detail-text detail-response">{{ response }}</p>
+          </div>
+        }
+
+        @if (ticket.publicResponse; as response) {
+          <div class="detail-block">
+            <span class="detail-label">Resposta pública</span>
+            <p class="detail-text detail-response">{{ response }}</p>
+          </div>
+        }
+      </div>
+
+      <div class="form-actions">
+        @if (ticket.status === 'PENDENTE') {
+          <button class="btn btn-primary" type="button" (click)="closeDetails(); openReview(ticket)">
+            Analisar
+          </button>
+        } @else if (ticket.status === 'APROVADO' || ticket.status === 'EM_PROCESSO') {
+          <button class="btn btn-primary" type="button" (click)="closeDetails(); openReview(ticket)">
+            Editar
+          </button>
+        }
+        <button class="btn btn-outline" type="button" (click)="closeDetails()">Fechar</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (viewingMessage(); as message) {
+  <div class="modal-overlay" (click)="closeMessage()">
+    <div class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title">Mensagem</h3>
+          <p class="modal-subtitle">
+            {{ message.createdAt | date : 'dd/MM/yyyy HH:mm' }}
+          </p>
+        </div>
+        <button class="modal-close" type="button" aria-label="Fechar" (click)="closeMessage()">
+          &times;
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="detail-row">
+          <span class="detail-label">De</span>
+          <span>{{ message.fromUser.name }}</span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-label">Para</span>
+          <span>{{ message.toUser.name }}</span>
+        </div>
+
+        @if (message.ticket; as t) {
+          <div class="detail-row">
+            <span class="detail-label">Tarefa</span>
+            <span>{{ t.title }} (#{{ t.id.slice(0, 8) }})</span>
+          </div>
+        }
+
+        <div class="detail-block">
+          <span class="detail-label">Conteúdo</span>
+          <p class="detail-text detail-response">{{ message.content }}</p>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="button" (click)="closeMessage()">Fechar</button>
+      </div>
+    </div>
+  </div>
+}

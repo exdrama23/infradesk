@@ -1,0 +1,52 @@
+<div class="login-shell">
+  <main class="login-card">
+    <div class="login-brand">
+      <h1 class="login-title">InfraDesk</h1>
+      <p class="login-subtitle">Sistema de atendimento de tickets de infraestrutura</p>
+    </div>
+
+    @if (errorMessage(); as error) {
+      <div class="alert alert-error" role="alert">{{ error }}</div>
+    }
+
+    <form class="login-form" [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-group">
+        <label for="email">E-mail</label>
+        <input
+          id="email"
+          class="form-control"
+          type="email"
+          autocomplete="email"
+          placeholder="voce@gmail.com"
+          formControlName="email"
+        />
+        @if (form.controls.email.invalid && form.controls.email.touched) {
+          <span class="field-error">Informe um e-mail válido.</span>
+        }
+      </div>
+
+      <div class="form-group">
+        <label for="password">Senha</label>
+        <input
+          id="password"
+          class="form-control"
+          type="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          formControlName="password"
+        />
+        @if (form.controls.password.invalid && form.controls.password.touched) {
+          <span class="field-error">A senha é obrigatória.</span>
+        }
+      </div>
+
+      <button class="btn btn-primary btn-block" type="submit" [disabled]="loading()">
+        {{ loading() ? 'Entrando...' : 'Entrar' }}
+      </button>
+    </form>
+
+    <p class="login-footer">
+      Acesso restrito. Em caso de problemas, procure a equipe de suporte.
+    </p>
+  </main>
+</div>

@@ -1,0 +1,250 @@
+<app-header />
+
+<main class="page container">
+  @if (errorMessage(); as error) {
+    <div class="alert alert-error" role="alert">{{ error }}</div>
+  }
+
+  <section class="card">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">Nova solicitação</h2>
+        <p class="section-subtitle">Registre uma solicitação de infraestrutura</p>
+      </div>
+    </div>
+
+    <form class="create-form" [formGroup]="form" (ngSubmit)="createTicket()">
+      <div class="form-group form-group-title">
+        <label for="title">Título</label>
+        <input
+          id="title"
+          class="form-control"
+          type="text"
+          placeholder="Ex.: Acesso VPN não funciona"
+          formControlName="title"
+        />
+        @if (form.controls.title.invalid && form.controls.title.touched) {
+          <span class="field-error">Informe um título (entre 3 e 150 caracteres).</span>
+        }
+      </div>
+
+      <div class="form-group form-group-description">
+        <label for="description">Descrição</label>
+        <textarea
+          id="description"
+          class="form-control"
+          rows="4"
+          placeholder="Descreva o problema em detalhes: o que aconteceu, quando, e qual o impacto..."
+          formControlName="description"
+        ></textarea>
+        @if (form.controls.description.invalid && form.controls.description.touched) {
+          <span class="field-error">
+            Descreva o problema com detalhes (entre 10 e 3000 caracteres).
+          </span>
+        }
+      </div>
+
+      <div class="form-group form-group-priority">
+        <label for="userPriority">Prioridade</label>
+        <select id="userPriority" class="form-control" formControlName="userPriority">
+          @for (priority of priorityOptions; track priority) {
+            <option [value]="priority"> {{ priorityLabels[priority] }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit" [disabled]="submitting() || loading()">
+          {{ submitting() ? 'Enviando...' : 'Criar solicitação' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">Minhas solicitações</h2>
+        <p class="section-subtitle">Acompanhe o status das suas solicitações</p>
+      </div>
+      <span class="count-chip">{{ total() }}</span>
+    </div>
+
+    @if (loading()) {
+      <div class="loading">Carregando...</div>
+    } @else if (tickets().length === 0) {
+      <div class="empty-state">
+        <p>Nenhuma solicitação registrada ainda.</p>
+        <p class="muted">Use o formulário acima para abrir sua primeira solicitação.</p>
+      </div>
+    } @else {
+      <div class="table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Título</th>
+              <th>Prioridade</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (ticket of tickets(); track ticket.id) {
+              <tr class="row-click" (click)="openDetails(ticket)">
+                <td>{{ ticket.createdAt | date : 'dd/MM/yy' }}</td>
+                <td class="cell-title">{{ truncar(ticket.title) }}</td>
+                <td>
+                  <span class="badge badge-priority">
+                    {{ priorityLabels[ticket.userPriority] }}
+                  </span>
+                </td>
+                <td>
+                  <span class="badge" [class]="badgeClass(ticket.status)">
+                    {{ statusLabels[ticket.status] }}
+                  </span>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPages > 1) {
+        <div class="pagination">
+          <button
+            class="btn btn-sm btn-outline"
+            type="button"
+            [disabled]="page() === 1"
+            (click)="goToPage(page() - 1)"
+          >
+            Anterior
+          </button>
+          <span class="pagination-info">Página {{ page() }} de {{ totalPages }}</span>
+          <button
+            class="btn btn-sm btn-outline"
+            type="button"
+            [disabled]="page() === totalPages"
+            (click)="goToPage(page() + 1)"
+          >
+            Próxima
+          </button>
+        </div>
+      }
+    }
+  </section>
+</main>
+
+@if (selectedTicket(); as ticket) {
+  <div class="modal-overlay" (click)="closeDetails()">
+    <div class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <div>
+          <h3 class="modal-title">{{ ticket.title }}</h3>
+          <p class="modal-subtitle">Aberto em {{ ticket.createdAt | date : 'dd/MM/yyyy HH:mm' }}</p>
+        </div>
+        <button class="modal-close" type="button" aria-label="Fechar" (click)="closeDetails()">
+          &times;
+        </button>
+      </div>
+
+      <div class="modal-body">
+        <div class="detail-row">
+          <span class="detail-label">Status</span>
+          <span class="badge" [class]="badgeClass(ticket.status)">
+            {{ statusLabels[ticket.status] }}
+          </span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-label">Prioridade</span>
+          <span>{{ priorityLabels[ticket.userPriority] }}</span>
+        </div>
+
+        <div class="detail-row">
+          <span class="detail-label">Descrição</span>
+          <p class="detail-text">{{ ticket.description }}</p>
+        </div>
+
+        @if (ticket.dev; as dev) {
+          <div class="detail-row">
+            <span class="detail-label">Responsável</span>
+            <span>{{ dev.name }}</span>
+          </div>
+        }
+
+        @if (ticket.estimatedDelivery; as delivery) {
+          <div class="detail-row">
+            <span class="detail-label">Previsão de entrega</span>
+            <span>{{ delivery | date : 'dd/MM/yyyy' }}</span>
+          </div>
+        }
+
+        @if (ticket.resolvedAt; as resolvedAt) {
+          <div class="detail-row">
+            <span class="detail-label">Concluída em</span>
+            <span>{{ resolvedAt | date : 'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+        }
+
+        @if (ticket.adminResponse; as response) {
+          <div class="detail-block">
+            <span class="detail-label">Resposta para você</span>
+            <p class="detail-text detail-response">{{ response }}</p>
+          </div>
+        }
+
+        @if (ticket.publicResponse; as publicResponse) {
+          <div class="detail-block">
+            <span class="detail-label">Resposta pública</span>
+            <p class="detail-text detail-response">{{ publicResponse }}</p>
+          </div>
+        }
+      </div>
+
+      <div class="form-actions">
+        @if (canCancel(ticket)) {
+          <button
+            class="btn btn-outline"
+            type="button"
+            [disabled]="cancelling()"
+            (click)="askCancel(ticket)"
+          >
+            Cancelar solicitação
+          </button>
+        }
+        <button class="btn btn-primary" type="button" (click)="closeDetails()">Fechar</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (confirmingCancel(); as ticket) {
+  <div class="modal-overlay" (click)="closeCancelConfirm()">
+    <div class="modal modal-confirm" role="alertdialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-body">
+        <h3 class="modal-title">Cancelar solicitação</h3>
+        <p class="confirm-text">
+          Cancelar esta solicitação? Essa ação não pode ser desfeita.
+        </p>
+      </div>
+      <div class="form-actions">
+        <button
+          class="btn btn-ghost"
+          type="button"
+          [disabled]="cancelling()"
+          (click)="closeCancelConfirm()"
+        >
+          Cancelar
+        </button>
+        <button
+          class="btn btn-primary"
+          type="button"
+          [disabled]="cancelling()"
+          (click)="confirmCancel()"
+        >
+          {{ cancelling() ? 'Confirmando...' : 'Confirmar' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

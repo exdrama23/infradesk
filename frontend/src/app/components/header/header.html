@@ -1,0 +1,16 @@
+<header class="header">
+  <a class="brand" [routerLink]="homeLink()">
+    <span class="brand-name">InfraDesk</span>
+  </a>
+
+  <div class="header-right">
+    <div class="user-chip">
+      <span class="user-avatar" aria-hidden="true">{{ user()?.name?.charAt(0) }}</span>
+      <span class="user-meta">
+        <span class="user-name">{{ user()?.name }}</span>
+        <span class="user-role">{{ roleLabel() }}</span>
+      </span>
+    </div>
+    <button class="btn btn-ghost" type="button" (click)="logout()">Sair</button>
+  </div>
+</header>
