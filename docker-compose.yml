@@ -1,4 +1,17 @@
 services:
+  dev:
+    image: mcr.microsoft.com/devcontainers/base:ubuntu
+    container_name: infradesk-dev
+    volumes:
+      - .:/workspace:cached
+    working_dir: /workspace
+    command: sleep infinity
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4200:4200"
+      - "3001:3001"
   postgres:
     image: postgres:17-alpine
     container_name: infradesk-postgres
