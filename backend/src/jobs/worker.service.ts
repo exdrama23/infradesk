@@ -4,7 +4,6 @@ import { JobType } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TicketsGateway, REALTIME_EVENTS } from '../realtime/tickets.gateway';
 import { randomUUID } from 'crypto';
-// import { error } from 'console';
 
 export interface WorkerOptions {
   pollIntervalMs?: number;
@@ -52,9 +51,9 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       `Worker ${this.workerId} iniciado (poll=${this.pollIntervalMs}ms, concurrency=${this.concurrency})`,
     );
 
-    // for (let i = 0; i < this.concurrency; i++) {
-    //   this.timers.push(setInterval(() => void this.processLoop(), this.pollIntervalMs));
-    // }
+    for (let i = 0; i < this.concurrency; i++) {
+      this.timers.push(setInterval(() => void this.processLoop(), this.pollIntervalMs));
+    }
 
     this.timers.push(setInterval(() => void this.jobs.releaseStaleLocks(), 30_000));
   }
@@ -72,7 +71,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     try {
       const job = await this.jobs.claimNext(this.workerId);
 
-      if (!job) return; 
+      if (!job) return;
 
       this.logger.log(`[WORKER] Job ${job.id} (${job.type}) processando...`);
 

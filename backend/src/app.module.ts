@@ -5,6 +5,11 @@ import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { AppController } from './app.controller';
+import { MessagesModule } from './messages/messages.module';
+import { UsersModule } from './users/users.module';
+import { TicketsModule } from './tickets/tickets.module';
+import { JobsModule } from './jobs/jobs.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({
   imports: [
@@ -18,6 +23,11 @@ import { AppController } from './app.controller';
     ]),
     PrismaModule,
     AuthModule,
+    UsersModule,
+    TicketsModule,
+    JobsModule,
+    RealtimeModule,
+    MessagesModule, 
   ],
   controllers: [AppController],
   providers: [
