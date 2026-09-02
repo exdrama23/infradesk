@@ -17,12 +17,13 @@
 	// The optional 'workspaceFolder' property is the path VS Code should open by default when
 	// connected. This is typically a file mount in .devcontainer/docker-compose.yml
 	"workspaceFolder": "/workspaces/infraDesk",
-	"forwardPorts": [4200, 3001, 8080, 5433],
-	"portsAttributes": {
+  "forwardPorts": [4200, 3001, 8080, 8081, 5432],
+  "portsAttributes": {
     "4200": { "label": "Angular (ng serve)" },
     "3001": { "label": "API NestJS" },
     "8080": { "label": "Web (nginx)" },
-    "5433": { "label": "PostgreSQL" }
+    "8081": { "label": "Keycloak" },
+    "5432": { "label": "PostgreSQL" }
   },
 	"features": {
     "ghcr.io/devcontainers/features/node:2": {

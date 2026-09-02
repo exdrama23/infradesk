@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TicketsGateway, REALTIME_EVENTS } from '../realtime/tickets.gateway';
 import { UserRole } from '../generated/prisma/client';
@@ -80,5 +80,31 @@ export class MessagesService {
       data: { readAt: new Date() },
     });
     return { ok: true };
+  }
+
+  async updateMessage(messageId: string, fromUserId: string, content: string) {
+    const msg = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!msg) throw new NotFoundException('Mensagem não encontrada');
+    if (msg.fromUserId !== fromUserId) throw new ForbiddenException('Só o remetente pode editar');
+    return this.prisma.message.update({
+      where: { id: messageId },
+      data: { content: content.trim() },
+      include: MESSAGE_INCLUDE,
+    });
+  }
+
+  async sessionsForLeader(leaderId: string) {
+    const sent = await this.prisma.message.findMany({
+      where: { fromUserId: leaderId },
+      include: MESSAGE_INCLUDE,
+      orderBy: { createdAt: 'desc' },
+    });
+    const byDev = new Map<string, { dev: { id: string; name: string; role: string }; messages: typeof sent }>();
+    for (const m of sent) {
+      const key = m.toUserId;
+      if (!byDev.has(key)) byDev.set(key, { dev: m.toUser, messages: [] });
+      byDev.get(key)!.messages.push(m);
+    }
+    return Array.from(byDev.values());
   }
 }

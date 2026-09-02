@@ -94,6 +94,22 @@ export class AdminComponent implements OnInit, OnDestroy {
 
   protected readonly activeTab = signal<'privada' | 'publica'>('privada');
 
+  protected readonly editingUser = signal<UserSummary | null>(null);
+  protected readonly editingUserLoading = signal(false);
+  protected readonly editUserFeedback = signal<string | null>(null);
+  protected readonly editUserForm = this.fb.nonNullable.group({
+    name: ['', [Validators.minLength(3), Validators.maxLength(100)]],
+    password: ['', [Validators.minLength(6), Validators.maxLength(50)]],
+    role: ['USER' as 'USER' | 'DEV' | 'LIDER', Validators.required],
+  });
+
+  protected readonly sessions = signal<{ dev: { id: string; name: string; role: string }; messages: Message[] }[]>([]);
+  protected readonly expandedDevId = signal<string | null>(null);
+  protected readonly editingMessageId = signal<string | null>(null);
+  protected readonly editMessageForm = this.fb.nonNullable.group({
+    content: ['', [Validators.required, Validators.minLength(1), Validators.maxLength(1000)]],
+  });
+
   protected readonly reviewForm = this.fb.nonNullable.group({
     status: ['APROVADO' as TicketStatus, Validators.required],
     devPriority: [3, [Validators.required, Validators.min(1), Validators.max(5)]],
@@ -172,6 +188,7 @@ export class AdminComponent implements OnInit, OnDestroy {
       });
       if (this.isLeader) {
         this.loadMessageTickets();
+        this.loadSessions();
       }
     }
     if (tab === 'equipe') {
@@ -223,6 +240,93 @@ export class AdminComponent implements OnInit, OnDestroy {
     });
   }
 
+  openEditUser(user: UserSummary): void {
+    this.editingUser.set(user);
+    this.editUserFeedback.set(null);
+    this.editUserForm.reset({ name: user.name, password: '', role: user.role });
+  }
+
+  closeEditUser(): void {
+    this.editingUser.set(null);
+    this.editUserFeedback.set(null);
+  }
+
+  toggleActive(user: UserSummary): void {
+    this.api.post<User>(`/users/${user.id}/toggle-active`, {}).subscribe({
+      next: () => this.loadTeam(),
+      error: () => this.accountFeedback.set('Falha ao alterar status.'),
+    });
+  }
+
+  submitEditUser(): void {
+    const target = this.editingUser();
+    if (!target) return;
+    const raw = this.editUserForm.getRawValue();
+    const payload: Record<string, string> = {};
+    if (raw.name && raw.name.trim() !== target.name) payload['name'] = raw.name.trim();
+    if (raw.password) payload['password'] = raw.password;
+    if (raw.role !== target.role) payload['role'] = raw.role;
+    if (Object.keys(payload).length === 0) {
+      this.editUserFeedback.set('Nenhuma alteração.');
+      return;
+    }
+    this.editingUserLoading.set(true);
+    this.api.patch<User>(`/users/${target.id}`, payload).subscribe({
+      next: () => {
+        this.editingUserLoading.set(false);
+        this.editUserFeedback.set('Usuário atualizado.');
+        this.loadTeam();
+        this.loadDevs();
+        setTimeout(() => this.closeEditUser(), 800);
+      },
+      error: () => {
+        this.editingUserLoading.set(false);
+        this.editUserFeedback.set('Falha ao atualizar.');
+      },
+    });
+  }
+
+  loadSessions(): void {
+    this.api.get<{ dev: { id: string; name: string; role: string }; messages: Message[] }[]>('/messages/sessions').subscribe({
+      next: (data) => this.sessions.set(data),
+      error: () => undefined,
+    });
+  }
+
+  toggleDev(devId: string): void {
+    this.expandedDevId.set(this.expandedDevId() === devId ? null : devId);
+  }
+
+  startEditMessage(message: Message): void {
+    this.editingMessageId.set(message.id);
+    this.editMessageForm.setValue({ content: message.content });
+  }
+
+  cancelEditMessage(): void {
+    this.editingMessageId.set(null);
+  }
+
+  saveMessage(message: Message): void {
+    if (this.editMessageForm.invalid) {
+      this.editMessageForm.markAllAsTouched();
+      return;
+    }
+    const content = this.editMessageForm.getRawValue().content.trim();
+    this.api.patch<Message>(`/messages/${message.id}`, { content }).subscribe({
+      next: (updated) => {
+        this.sessions.update((list) =>
+          list.map((s) => ({
+            ...s,
+            messages: s.messages.map((m) => (m.id === updated.id ? updated : m)),
+          })),
+        );
+        this.inbox.update((list) => list.map((m) => (m.id === updated.id ? updated : m)));
+        this.editingMessageId.set(null);
+      },
+      error: () => undefined,
+    });
+  }
+
   sendMessage(): void {
     if (this.messageForm.invalid) {
       this.messageForm.markAllAsTouched();
@@ -244,6 +348,7 @@ export class AdminComponent implements OnInit, OnDestroy {
         this.messageFeedback.set(`Mensagem enviada para ${message.toUser.name}.`);
         this.messageForm.reset({ ticketId: '', toUserId: '', content: '' });
         this.pinnedMessageTicket.set(null);
+        this.loadSessions();
       },
       error: () => {
         this.sendingMessage.set(false);

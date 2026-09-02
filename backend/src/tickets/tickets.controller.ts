@@ -1,12 +1,12 @@
 import {
-    Body,
-    Controller,
-    Get,
-    Param,
-    ParseUUIDPipe,
-    Post,
-    Query,
-    UseGuards,
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import { TicketsService } from './tickets.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -21,14 +21,14 @@ import { AssignTicketDto } from './dto/assign-ticket.dto';
 @Controller('tickets')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class TicketsController {
-    constructor(private readonly tickets: TicketsService) { }
+  constructor(private readonly tickets: TicketsService) {}
 
-    @Post()
-    create(@CurrentUser() user, @Body() dto: CreateTicketDto) {
-        return this.tickets.create(user, dto);
-    }
+  @Post()
+  create(@CurrentUser() user, @Body() dto: CreateTicketDto) {
+    return this.tickets.create(user, dto);
+  }
 
-    @Get()
+  @Get()
   findAll(
     @CurrentUser() user,
     @Query('page') page?: string,
@@ -38,7 +38,10 @@ export class TicketsController {
     return this.tickets.findAll(user, {
       page: page ? Number(page) : undefined,
       limit: limit ? Number(limit) : undefined,
-      status: status && Object.values(TicketStatus).includes(status) ? status : undefined,
+      status:
+        status && Object.values(TicketStatus).includes(status)
+          ? status
+          : undefined,
     });
   }
 

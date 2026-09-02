@@ -266,6 +266,64 @@
           </div>
         </form>
       </section>
+
+      <section class="card">
+        <div class="section-header">
+          <div>
+            <h2 class="section-title">Sessões por DEV</h2>
+            <p class="section-subtitle">Clique no DEV para ver e editar as mensagens enviadas</p>
+          </div>
+        </div>
+        @if (sessions().length === 0) {
+          <div class="empty-state"><p>Nenhuma mensagem enviada ainda.</p></div>
+        } @else {
+          <div class="table-wrap">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>DEV</th>
+                  <th>Mensagens</th>
+                  <th>Ação</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (s of sessions(); track s.dev.id) {
+                  <tr class="row-click" (click)="toggleDev(s.dev.id)">
+                    <td class="cell-user">{{ s.dev.name }}</td>
+                    <td><span class="badge badge-priority">{{ s.messages.length }}</span></td>
+                    <td><button class="btn btn-sm btn-outline" type="button">{{ expandedDevId() === s.dev.id ? 'Fechar' : 'Abrir' }}</button></td>
+                  </tr>
+                  @if (expandedDevId() === s.dev.id) {
+                    <tr>
+                      <td colspan="3">
+                        <div class="session-messages">
+                          @for (m of s.messages; track m.id) {
+                            <div class="detail-block">
+                              <span class="detail-label">{{ m.createdAt | date : 'dd/MM/yyyy HH:mm' }} · {{ m.ticket ? m.ticket.title : 'sem tarefa' }}</span>
+                              @if (editingMessageId() === m.id) {
+                                <form [formGroup]="editMessageForm" (ngSubmit)="saveMessage(m)" class="form-row" style="margin-top:8px">
+                                  <textarea class="form-control" rows="2" formControlName="content"></textarea>
+                                  <div class="form-actions">
+                                    <button class="btn btn-sm btn-primary" type="submit">Salvar</button>
+                                    <button class="btn btn-sm btn-ghost" type="button" (click)="cancelEditMessage()">Cancelar</button>
+                                  </div>
+                                </form>
+                              } @else {
+                                <p class="detail-text detail-response">{{ m.content }}</p>
+                                <button class="btn btn-sm btn-outline" type="button" (click)="startEditMessage(m)">Editar</button>
+                              }
+                            </div>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
     }
 
     @if (!isLeader) {
@@ -399,12 +457,13 @@
               <th>Papel</th>
               <th>Solicitações abertas</th>
               <th>Tarefas atribuídas</th>
+              <th>Ações</th>
             </tr>
           </thead>
           <tbody>
             @for (u of teamUsers(); track u.id) {
-              <tr>
-                <td class="cell-user">{{ u.name }}</td>
+              <tr [class.opacity-60]="u.isActive === false">
+                <td class="cell-user">{{ u.name }} @if (u.isActive === false) { <span class="badge" style="background:#fee;color:#900;margin-left:6px">Inativo</span> }</td>
                 <td>{{ u.email }}</td>
                 <td>
                   <span class="badge badge-priority">
@@ -413,12 +472,57 @@
                 </td>
                 <td>{{ u._count.tickets }}</td>
                 <td>{{ u._count.assigned }}</td>
+                <td>
+                  <div class="cell-actions" style="min-width:160px">
+                    <button class="btn btn-sm btn-outline" type="button" (click)="openEditUser(u)">Editar</button>
+                    <button class="btn btn-sm" [class.btn-primary]="u.isActive !== false" [class.btn-outline]="u.isActive === false" type="button" (click)="toggleActive(u)">{{ u.isActive === false ? 'Ativar' : 'Inativar' }}</button>
+                  </div>
+                </td>
               </tr>
             }
           </tbody>
         </table>
       </div>
     </section>
+
+    @if (editingUser(); as eu) {
+      <div class="modal-overlay" (click)="closeEditUser()">
+        <div class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+          <div class="modal-head">
+            <div>
+              <h3 class="modal-title">Editar usuário</h3>
+              <p class="modal-subtitle">{{ eu.email }}</p>
+            </div>
+            <button class="modal-close" type="button" aria-label="Fechar" (click)="closeEditUser()">&times;</button>
+          </div>
+          <form class="modal-form" [formGroup]="editUserForm" (ngSubmit)="submitEditUser()">
+            <div class="form-group">
+              <label for="edit-name">Nome</label>
+              <input id="edit-name" class="form-control" type="text" formControlName="name" />
+            </div>
+            <div class="form-group">
+              <label for="edit-password">Nova senha</label>
+              <input id="edit-password" class="form-control" type="password" placeholder="Deixe vazio para manter" formControlName="password" />
+            </div>
+            <div class="form-group">
+              <label for="edit-role">Papel</label>
+              <select id="edit-role" class="form-control" formControlName="role">
+                <option value="USER">Usuário</option>
+                <option value="DEV">DEV</option>
+                <option value="LIDER">LÍDER</option>
+              </select>
+            </div>
+            @if (editUserFeedback(); as fb) {
+              <p class="muted">{{ fb }}</p>
+            }
+            <div class="form-actions">
+              <button class="btn btn-ghost" type="button" (click)="closeEditUser()">Cancelar</button>
+              <button class="btn btn-primary" type="submit" [disabled]="editingUserLoading()">{{ editingUserLoading() ? 'Salvando...' : 'Salvar' }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    }
   }
 </main>
 

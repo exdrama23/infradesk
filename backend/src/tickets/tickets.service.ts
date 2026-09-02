@@ -1,8 +1,8 @@
 import {
-    BadRequestException,
-    ForbiddenException,
-    Injectable,
-    NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { JobsService } from '../jobs/jobs.service';
@@ -13,58 +13,62 @@ import { DevReviewDto } from './dto/dev-review.dto';
 import { AssignTicketDto } from './dto/assign-ticket.dto';
 
 interface AuthUser {
-    id: string;
-    role: UserRole;
-    name?: string;
-    email?: string;
+  id: string;
+  role: UserRole;
+  name?: string;
+  email?: string;
 }
 
 const ALLOWED_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
-    [TicketStatus.PENDENTE]: [TicketStatus.APROVADO, TicketStatus.REPROVADO, TicketStatus.CANCELADO],
-    [TicketStatus.APROVADO]: [
-        TicketStatus.EM_PROCESSO,
-        TicketStatus.REPROVADO,
-        TicketStatus.CANCELADO,
-    ],
-    [TicketStatus.EM_PROCESSO]: [TicketStatus.IMPLEMENTADO],
-    [TicketStatus.REPROVADO]: [],
-    [TicketStatus.IMPLEMENTADO]: [],
-    [TicketStatus.CANCELADO]: [],
+  [TicketStatus.PENDENTE]: [
+    TicketStatus.APROVADO,
+    TicketStatus.REPROVADO,
+    TicketStatus.CANCELADO,
+  ],
+  [TicketStatus.APROVADO]: [
+    TicketStatus.EM_PROCESSO,
+    TicketStatus.REPROVADO,
+    TicketStatus.CANCELADO,
+  ],
+  [TicketStatus.EM_PROCESSO]: [TicketStatus.IMPLEMENTADO],
+  [TicketStatus.REPROVADO]: [],
+  [TicketStatus.IMPLEMENTADO]: [],
+  [TicketStatus.CANCELADO]: [],
 };
 
 @Injectable()
 export class TicketsService {
-    constructor(
-        private readonly prisma: PrismaService,
-        private readonly jobs: JobsService,
-        private readonly realtime: TicketsGateway,
-    ) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jobs: JobsService,
+    private readonly realtime: TicketsGateway,
+  ) {}
 
-    async create(user: AuthUser, dto: CreateTicketDto) {
-        const ticket = await this.prisma.ticket.create({
-            data: {
-                userId: user.id,
-                title: dto.title,
-                description: dto.description,
-                userPriority: dto.userPriority,
-            },
-        });
+  async create(user: AuthUser, dto: CreateTicketDto) {
+    const ticket = await this.prisma.ticket.create({
+      data: {
+        userId: user.id,
+        title: dto.title,
+        description: dto.description,
+        userPriority: dto.userPriority,
+      },
+    });
 
-        await this.jobs.enqueue(
-            JobType.TICKET_CREATED,
-            { ticketId: ticket.id, title: ticket.title, userEmail: user.email },
-            { ticketId: ticket.id },
-        );
+    await this.jobs.enqueue(
+      JobType.TICKET_CREATED,
+      { ticketId: ticket.id, title: ticket.title, userEmail: user.email },
+      { ticketId: ticket.id },
+    );
 
-        const created = await this.findById(ticket.id, user);
-        this.realtime.emitToDevs(REALTIME_EVENTS.ticketCreated, {
-            ticket: created,
-            action: 'created',
-        });
-        return created;
-    }
+    const created = await this.findById(ticket.id, user);
+    this.realtime.emitToDevs(REALTIME_EVENTS.ticketCreated, {
+      ticket: created,
+      action: 'created',
+    });
+    return created;
+  }
 
-      async findAll(
+  async findAll(
     user: AuthUser,
     options: { page?: number; limit?: number; status?: TicketStatus } = {},
   ) {
@@ -92,7 +96,9 @@ export class TicketsService {
 
     const pending =
       user.role === UserRole.DEV || user.role === UserRole.LIDER
-        ? await this.prisma.ticket.count({ where: { status: TicketStatus.PENDENTE } })
+        ? await this.prisma.ticket.count({
+            where: { status: TicketStatus.PENDENTE },
+          })
         : undefined;
 
     return {
@@ -118,14 +124,18 @@ export class TicketsService {
     }
 
     if (user.role === UserRole.USER && ticket.userId !== user.id) {
-      throw new ForbiddenException('Você só pode acessar os seus próprios tickets');
+      throw new ForbiddenException(
+        'Você só pode acessar os seus próprios tickets',
+      );
     }
 
     return ticket;
   }
 
   async assign(dev: AuthUser, ticketId: string, dto: AssignTicketDto) {
-    const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } });
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+    });
 
     if (!ticket) {
       throw new NotFoundException('Ticket não encontrado');
@@ -147,14 +157,16 @@ export class TicketsService {
     });
 
     if (!targetDev || targetDev.role !== UserRole.DEV) {
-      throw new BadRequestException('O usuário informado não é um desenvolvedor');
+      throw new BadRequestException(
+        'O usuário informado não é um desenvolvedor',
+      );
     }
 
     const updated = await this.prisma.ticket.update({
       where: { id: ticketId },
       data: {
         devId: targetDev.id,
-        devRole: UserRole.DEV, 
+        devRole: UserRole.DEV,
       },
       include: { user: true, dev: true },
     });
@@ -178,7 +190,9 @@ export class TicketsService {
   }
 
   async review(dev: AuthUser, ticketId: string, dto: DevReviewDto) {
-    const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } });
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+    });
 
     if (!ticket) {
       throw new NotFoundException('Ticket não encontrado');
@@ -235,14 +249,18 @@ export class TicketsService {
   }
 
   async cancel(user: AuthUser, ticketId: string) {
-    const ticket = await this.prisma.ticket.findUnique({ where: { id: ticketId } });
+    const ticket = await this.prisma.ticket.findUnique({
+      where: { id: ticketId },
+    });
 
     if (!ticket) {
       throw new NotFoundException('Ticket não encontrado');
     }
 
     if (ticket.userId !== user.id) {
-      throw new ForbiddenException('Você só pode cancelar os seus próprios tickets');
+      throw new ForbiddenException(
+        'Você só pode cancelar os seus próprios tickets',
+      );
     }
 
     if (!ALLOWED_TRANSITIONS[ticket.status].includes(TicketStatus.CANCELADO)) {

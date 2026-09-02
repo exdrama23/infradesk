@@ -1,4 +1,11 @@
-import { IsInt, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  IsInt,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 
 export class CreateTicketDto {
   @IsString()
@@ -7,7 +14,9 @@ export class CreateTicketDto {
   title: string;
 
   @IsString()
-  @MinLength(10, { message: 'Descreva o problema com mais detalhes (mínimo 10 caracteres)' })
+  @MinLength(10, {
+    message: 'Descreva o problema com mais detalhes (mínimo 10 caracteres)',
+  })
   description: string;
 
   @IsInt()

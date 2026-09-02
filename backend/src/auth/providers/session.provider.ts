@@ -7,13 +7,16 @@ const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class SessionProvider {
-    private readonly hmacKey: string;
+  private readonly hmacKey: string;
 
   constructor(
     private readonly prisma: PrismaService,
     config: ConfigService,
   ) {
-    this.hmacKey = config.get<string>('SESSION_SECRET') ?? config.get<string>('JWT_SECRET') ?? '';
+    this.hmacKey =
+      config.get<string>('SESSION_SECRET') ??
+      config.get<string>('JWT_SECRET') ??
+      '';
   }
 
   generateRefreshToken(): string {
@@ -21,7 +24,9 @@ export class SessionProvider {
   }
 
   hashToken(refreshToken: string): string {
-    return createHmac('sha256', this.hmacKey).update(refreshToken).digest('hex');
+    return createHmac('sha256', this.hmacKey)
+      .update(refreshToken)
+      .digest('hex');
   }
 
   async create(

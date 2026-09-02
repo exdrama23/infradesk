@@ -19,7 +19,7 @@ export interface RequestMeta {
 
 @Injectable()
 export class AuthService {
-    constructor(
+  constructor(
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly argon2: Argon2Provider,
@@ -58,27 +58,31 @@ export class AuthService {
       throw new UnauthorizedException('Credenciais inválidas');
     }
 
-    if (user.password.startsWith('$2')) {
-        const bcryptOk = await bcrypt.compare(dto.password, user.password);
-        if (!bcryptOk) {
-            throw new UnauthorizedException('Credenciais inválidas');
-        }
-        const upgraded = await this.argon2.hash(dto.password);
-        await this.prisma.user.update({
-            where: { id: user.id },
-            data: { password: upgraded },
-        });
-        } else {
-        const argonOk = await this.argon2.verify(user.password, dto.password);
-        if (!argonOk) {
-            throw new UnauthorizedException('Credenciais inválidas');
-        }
-        }
-
-        return this.issueTokens(user, meta);
+    if ((user as unknown as { isActive: boolean }).isActive === false) {
+      throw new UnauthorizedException('você foi banido, fale com a equipe tecnica');
     }
 
-    async refresh(refreshToken: string | undefined, meta: RequestMeta = {}) {
+    if (user.password.startsWith('$2')) {
+      const bcryptOk = await bcrypt.compare(dto.password, user.password);
+      if (!bcryptOk) {
+        throw new UnauthorizedException('Credenciais inválidas');
+      }
+      const upgraded = await this.argon2.hash(dto.password);
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { password: upgraded },
+      });
+    } else {
+      const argonOk = await this.argon2.verify(user.password, dto.password);
+      if (!argonOk) {
+        throw new UnauthorizedException('Credenciais inválidas');
+      }
+    }
+
+    return this.issueTokens(user, meta);
+  }
+
+  async refresh(refreshToken: string | undefined, meta: RequestMeta = {}) {
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token ausente');
     }

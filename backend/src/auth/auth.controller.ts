@@ -1,10 +1,4 @@
-import {
-  Body,
-  Controller,
-  Post,
-  Req,
-  Res,
-} from '@nestjs/common';
+import { Body, Controller, Post, Req, Res } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthService, RequestMeta } from './auth.service';
@@ -26,9 +20,9 @@ const COOKIE_BASE = {
 
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) {}
 
-    @Post('login')
+  @Post('login')
   @Throttle({ default: { limit: 5, ttl: 60_000 } })
   async login(
     @Body() dto: LoginDto,
@@ -64,10 +58,7 @@ export class AuthController {
   }
 
   @Post('logout')
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     await this.authService.logout(req.cookies?.[REFRESH_COOKIE]);
     res.clearCookie(ACCESS_COOKIE, COOKIE_BASE);
     res.clearCookie(REFRESH_COOKIE, COOKIE_BASE);

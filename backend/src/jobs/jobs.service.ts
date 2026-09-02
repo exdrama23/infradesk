@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { JobStatus, JobType } from '../generated/prisma/client';
+import { JobStatus, JobType, Prisma } from '../generated/prisma/client';
 
 export interface JobPayload {
   [key: string]: unknown;
@@ -29,7 +29,7 @@ export class JobsService {
     const job = await this.prisma.job.create({
       data: {
         type,
-        payload: payload as object,
+        payload: payload as unknown as Prisma.InputJsonValue,
         ticketId: options.ticketId,
         availableAt: options.availableAt ?? new Date(),
       },
@@ -117,17 +117,20 @@ export class JobsService {
         availableAt: new Date(Date.now() + backoffMs),
       },
     });
-    this.logger.warn(`[JOBS] Job ${jobId} re-enfileirado (backoff ${backoffMs}ms): ${error}`);
+    this.logger.warn(
+      `[JOBS] Job ${jobId} re-enfileirado (backoff ${backoffMs}ms): ${error}`,
+    );
   }
 
   async getStats() {
-    const [pending, processing, completed, failed, cancelled] = await Promise.all([
-      this.prisma.job.count({ where: { status: JobStatus.PENDING } }),
-      this.prisma.job.count({ where: { status: JobStatus.PROCESSING } }),
-      this.prisma.job.count({ where: { status: JobStatus.COMPLETED } }),
-      this.prisma.job.count({ where: { status: JobStatus.FAILED } }),
-      this.prisma.job.count({ where: { status: JobStatus.CANCELLED } }),
-    ]);
+    const [pending, processing, completed, failed, cancelled] =
+      await Promise.all([
+        this.prisma.job.count({ where: { status: JobStatus.PENDING } }),
+        this.prisma.job.count({ where: { status: JobStatus.PROCESSING } }),
+        this.prisma.job.count({ where: { status: JobStatus.COMPLETED } }),
+        this.prisma.job.count({ where: { status: JobStatus.FAILED } }),
+        this.prisma.job.count({ where: { status: JobStatus.CANCELLED } }),
+      ]);
 
     return { pending, processing, completed, failed, cancelled };
   }

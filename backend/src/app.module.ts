@@ -17,7 +17,7 @@ import { RealtimeModule } from './realtime/realtime.module';
     ThrottlerModule.forRoot([
       {
         name: 'default',
-        ttl: 60_000, 
+        ttl: 60_000,
         limit: 120,
       },
     ]),
@@ -27,11 +27,9 @@ import { RealtimeModule } from './realtime/realtime.module';
     TicketsModule,
     JobsModule,
     RealtimeModule,
-    MessagesModule, 
+    MessagesModule,
   ],
   controllers: [AppController],
-  providers: [
-    { provide: APP_GUARD, useClass: ThrottlerGuard },
-  ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

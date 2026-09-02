@@ -1,4 +1,11 @@
-import { Inject, Injectable, Logger, OnModuleDestroy, OnModuleInit, Optional } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+  Optional,
+} from '@nestjs/common';
 import { JobsService } from './jobs.service';
 import { JobType } from '../generated/prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -27,15 +34,19 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     @Optional() @Inject('WORKER_OPTIONS') options?: WorkerOptions,
   ) {
     this.workerId = options?.workerId ?? randomUUID();
-    this.pollIntervalMs = options?.pollIntervalMs ?? +(process.env.WORKER_POLL_INTERVAL_MS ?? 3000);
-    this.concurrency = options?.concurrency ?? +(process.env.WORKER_MAX_CONCURRENCY ?? 2);
+    this.pollIntervalMs =
+      options?.pollIntervalMs ?? +(process.env.WORKER_POLL_INTERVAL_MS ?? 3000);
+    this.concurrency =
+      options?.concurrency ?? +(process.env.WORKER_MAX_CONCURRENCY ?? 2);
   }
 
   async onModuleInit() {
     if (process.env.WORKER_ENABLED !== 'false') {
       this.start();
     } else {
-      this.logger.log(`Worker ${this.workerId} desabilitado (WORKER_ENABLED=false)`);
+      this.logger.log(
+        `Worker ${this.workerId} desabilitado (WORKER_ENABLED=false)`,
+      );
     }
   }
 
@@ -52,10 +63,14 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     );
 
     for (let i = 0; i < this.concurrency; i++) {
-      this.timers.push(setInterval(() => void this.processLoop(), this.pollIntervalMs));
+      this.timers.push(
+        setInterval(() => void this.processLoop(), this.pollIntervalMs),
+      );
     }
 
-    this.timers.push(setInterval(() => void this.jobs.releaseStaleLocks(), 30_000));
+    this.timers.push(
+      setInterval(() => void this.jobs.releaseStaleLocks(), 30_000),
+    );
   }
 
   stop() {
@@ -118,7 +133,9 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
         if (job.ticketId) {
           const ticket = await this.prisma.ticket.findUnique({
             where: { id: job.ticketId },
-            include: { user: { select: { id: true, name: true, email: true } } },
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+            },
           });
 
           this.logger.log(
@@ -134,8 +151,13 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       }
 
       case JobType.TICKET_ASSIGNED: {
-        this.logger.log(`[WORKER] Ticket atribuído a DEV — enviando notificação`);
-        return { assignedTo: job.payload.devEmail ?? null, at: new Date().toISOString() };
+        this.logger.log(
+          `[WORKER] Ticket atribuído a DEV — enviando notificação`,
+        );
+        return {
+          assignedTo: job.payload.devEmail ?? null,
+          at: new Date().toISOString(),
+        };
       }
 
       case JobType.NOTIFICATION: {

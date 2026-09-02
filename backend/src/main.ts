@@ -11,7 +11,8 @@ async function bootstrap() {
   app.use(cookieParser(process.env.COOKIES_SECRET));
   app.enableCors({
     origin: (origin, cb) => {
-      const allowed = !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+      const allowed =
+        !origin || /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
       cb(null, allowed);
     },
     credentials: true,
@@ -25,6 +26,9 @@ async function bootstrap() {
   );
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  Logger.log(`InfraDesk API rodando em http://localhost:${port}/api`, 'Bootstrap');
+  Logger.log(
+    `InfraDesk API rodando em http://localhost:${port}/api`,
+    'Bootstrap',
+  );
 }
 bootstrap();

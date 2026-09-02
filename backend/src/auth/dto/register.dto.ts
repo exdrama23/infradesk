@@ -9,7 +9,7 @@ import {
 import { UserRole } from '../../generated/prisma/client';
 
 export class RegisterDto {
-    @IsString()
+  @IsString()
   @MinLength(3, { message: 'O nome deve ter no mínimo 3 caracteres' })
   @MaxLength(100)
   name: string;
